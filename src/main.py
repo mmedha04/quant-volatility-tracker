@@ -1,6 +1,8 @@
 #the main file to run all functions
 from fetch_options import fetch_stock_data, fetch_iv_data, compute_hv
-from signals import detect_iv_spike, detect_iv_vs_hv
+from signals import detect_iv_spike, detect_iv_vs_hv, detect_iv_price_divergence
+from logger_config import setup_logger
+from utils import log_signal_to_csv
 from datetime import datetime #gives you current date & time
 import os #use to check if a file exists or if we need to create a new one
 import pandas as pd
@@ -8,6 +10,8 @@ import argparse #used for creating command line interfaces (CLI)
 
 
 if __name__ == "__main__":
+    logger = setup_logger()
+
     parser = argparse.ArgumentParser(description= "Options Volatility Tracker") #initialize parser
     parser.add_argument("--ticker", type=str, required=True, help= "Stock ticker symbol, ex:AAPL")
     parser.add_argument("--days", type=int, default=31, help= "Number of days for historical data")
@@ -18,6 +22,7 @@ if __name__ == "__main__":
 
     today = datetime.now().date() #get current date
     print(f"\nRunning analysis for {symbol} on {today}...")
+    logger.info(f"\nRunning analysis for {symbol} on {today}...")
 
     #get price data & IV
     price_data = fetch_stock_data(symbol, period=f"{days}d")
@@ -25,6 +30,7 @@ if __name__ == "__main__":
 
     if iv_today is None: #if no iv data, leave main
         print(f"No valid IV data found for {symbol}. Skipping.")
+        logger.warning(f"No valid IV data found for {symbol}. Skipping.")
         exit()
 
     #save stock prices
@@ -58,12 +64,21 @@ if __name__ == "__main__":
     #Market signal 1: IV Spike Detection
     spike_check, spike_msg = detect_iv_spike(iv_yesterday, iv_today, symbol)
     print(spike_msg)
+    logger.info(spike_msg)
+    log_signal_to_csv(today, symbol, "IV_SPIKE", spike_msg)
 
     #Market Signal 2: IV vs HV Detection
     hv_today = compute_hv(price_data)
     ratio_check, ratio_msg = detect_iv_vs_hv(hv_today, iv_today, symbol)
     print(ratio_msg)
+    logger.info(ratio_msg)
+    log_signal_to_csv(today, symbol, "IV_VS_HV", ratio_msg)
     
+    #Market Signal 3: IV Price Divergence
+    div_check, div_msg = detect_iv_price_divergence(iv_today, iv_yesterday, price_data, symbol)
+    print(div_msg)
+    logger.info(div_msg)
+    log_signal_to_csv(today, symbol, "IV_PRICE_DIVERGENCE", div_msg)
 
 
     

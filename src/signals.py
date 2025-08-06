@@ -27,4 +27,26 @@ def detect_iv_vs_hv(hv_today, iv_today, symbol, threshold=1.5):
 
     return False, result
     
+#when IV rises while the stock price stays flat or drops, it could indicate market nervousness or an upcoming move
+def detect_iv_price_divergence(iv_today, iv_yesterday, price_data, symbol, threshold=0.1):
+    #this function detects divergence when IV increases and price does not.
+    if iv_yesterday is None or iv_today is None:
+        return False, f"{symbol}: Missing valid IV data."
+
+    if len(price_data) < 2: #dont have past 2 days data
+        return False, f"{symbol}: Lacking price data for divergence check."
+    
+    iv_change = (iv_today - iv_yesterday) / iv_yesterday
+    price_today = price_data["Close"].iloc[-1]
+    price_yesterday = price_data["Close"].iloc[-2]
+    price_change = (price_today - price_yesterday) / price_yesterday
+
+    if iv_change > threshold and price_change <= 0:
+        return True, f"🚨{symbol}: IV raised {iv_change:.2%} while price fell {price_change:.2%} -> Divergence detected."
+    else:
+        return False, f"{symbol}: IV change = {iv_change:.2%}, Price change = {price_change:.2%} — No divergence."
+
+    #use past 2-day price change and current IV change
+    #if IV increases by 10% while price is flat or down -> flag it
+    #print + log the signal in main.py
     
